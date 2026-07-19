@@ -36,6 +36,16 @@ const MODELS = {
     webgpu: isAndroid ? ["fp32"] : ["fp16", "fp32"],
     wasm: ["q8"],
   },
+  "SmolLM2-135M": {
+    repo: "HuggingFaceTB/SmolLM2-135M-Instruct",
+    webgpu: isAndroid ? ["q4"] : ["q4f16", "q4"],
+    wasm: ["q8"],
+  },
+  "SmolLM2-360M": {
+    repo: "HuggingFaceTB/SmolLM2-360M-Instruct",
+    webgpu: isAndroid ? ["q4"] : ["q4f16", "q4"],
+    wasm: ["q8"],
+  },
 };
 const DEFAULT_MODEL = "Qwen3-0.6B";
 
