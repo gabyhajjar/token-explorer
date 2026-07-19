@@ -138,3 +138,4 @@ li > span { position: relative; z-index: 1; }
   margin-top: 8px; font-family: ui-monospace, monospace; font-size: 0.75rem;
   color: var(--dim); max-height: 100px; overflow-y: auto;
 }
+#app-version { font-size: 0.65rem; color: var(--dim); margin-left: 6px; }

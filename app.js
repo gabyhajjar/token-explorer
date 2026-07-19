@@ -1,6 +1,11 @@
 "use strict";
 
+const APP_VERSION = "v10";
+
 const $ = (id) => document.getElementById(id);
+document.addEventListener("DOMContentLoaded", () => {
+  $("app-version").textContent = APP_VERSION;
+});
 
 const state = {
   candidates: [],
