@@ -134,3 +134,7 @@ li > span { position: relative; z-index: 1; }
   height: 100%; width: 0%; background: var(--accent);
   border-radius: 4px; transition: width 0.2s ease;
 }
+#load-log {
+  margin-top: 8px; font-family: ui-monospace, monospace; font-size: 0.75rem;
+  color: var(--dim); max-height: 100px; overflow-y: auto;
+}

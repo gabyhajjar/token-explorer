@@ -58,7 +58,9 @@ const fileProgress = new Map();
 function onProgress(info) {
   if (!info) return;
   if (info.status === "retry") {
-    $("load-text").textContent = info.message;
+    const line = document.createElement("div");
+    line.textContent = info.message;
+    $("load-log").appendChild(line);
     $("load-bar").style.width = "0%";
     fileProgress.clear();
     return;
@@ -88,6 +90,7 @@ async function loadModel(name) {
   $("candidates-section").hidden = true;
   $("load-panel").hidden = false;
   $("load-text").textContent = "Loading " + name + " …";
+  $("load-log").textContent = "";
   $("load-bar").style.width = "0%";
   try {
     const d = await rpc("load", { model: name });

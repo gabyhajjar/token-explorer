@@ -23,17 +23,17 @@ const isAndroid = /Android/i.test(self.navigator?.userAgent ?? "");
 const MODELS = {
   "Qwen3-0.6B": {
     repo: "onnx-community/Qwen3-0.6B-ONNX",
-    webgpu: isAndroid ? ["q4", "q4f16"] : ["q4f16", "q4"],
+    webgpu: isAndroid ? ["q4"] : ["q4f16", "q4"],
     wasm: ["q8"],
   },
   "Qwen3-1.7B": {
     repo: "onnx-community/Qwen3-1.7B-ONNX",
-    webgpu: isAndroid ? ["q4", "q4f16"] : ["q4f16", "q4"],
+    webgpu: isAndroid ? ["q4"] : ["q4f16", "q4"],
     wasm: ["q8"],
   },
   "GPT-2": {
     repo: "onnx-community/gpt2-ONNX",
-    webgpu: isAndroid ? ["fp32", "fp16"] : ["fp16", "fp32"],
+    webgpu: isAndroid ? ["fp32"] : ["fp16", "fp32"],
     wasm: ["q8"],
   },
 };
@@ -157,8 +157,9 @@ async function loadModel(key, notify) {
   }
   for (const dt of spec.wasm) attempts.push(["wasm", dt]);
 
-  let lastErr = null;
+  const failures = [];
   for (const [dev, dtype] of attempts) {
+    notify({ file: "", status: "retry", message: `Trying ${dev}/${dtype} …` });
     try {
       model = await AutoModelForCausalLM.from_pretrained(spec.repo, {
         device: dev,
@@ -170,15 +171,17 @@ async function loadModel(key, notify) {
       currentDtype = dtype;
       currentKey = key;
       collectEosIds();
+      notify({ file: "", status: "retry", message: `✓ ${dev}/${dtype} works` });
       return modelInfo();
     } catch (err) {
-      lastErr = err;
+      const msg = String(err?.message ?? err);
+      failures.push(`${dev}/${dtype}: ${msg}`);
+      notify({ file: "", status: "retry", message: `✗ ${dev}/${dtype} failed: ${msg}` });
       try { model?.dispose?.(); } catch {}
       model = null;
-      notify({ file: "", status: "retry", message: `${dev}/${dtype} failed (${err.message}), trying next…` });
     }
   }
-  throw lastErr ?? new Error("No backend worked.");
+  throw new Error("all backends failed — " + (failures.join(" | ") || "none attempted"));
 }
 
 function modelInfo() {
