@@ -164,11 +164,14 @@ async function loadModel(key, notify) {
 
   tokenizer = await AutoTokenizer.from_pretrained(spec.repo, { progress_callback: notify });
 
-  const attempts = [];
+  const gpuAttempts = [];
   if ((await pickDevice()) === "webgpu") {
-    for (const dt of spec.webgpu) attempts.push(["webgpu", dt]);
+    for (const dt of spec.webgpu) gpuAttempts.push(["webgpu", dt]);
   }
-  for (const dt of spec.wasm) attempts.push(["wasm", dt]);
+  const cpuAttempts = spec.wasm.map((dt) => ["wasm", dt]);
+  // Android Chrome's WebGPU is unreliable at inference time (dropped GPU
+  // instance mid-session), so phones get the dependable CPU backend first.
+  const attempts = isAndroid ? [...cpuAttempts, ...gpuAttempts] : [...gpuAttempts, ...cpuAttempts];
 
   const failures = [];
   for (const [dev, dtype] of attempts) {
@@ -217,7 +220,7 @@ function encodePrompt(prompt, raw) {
   return tokenizer.encode(prompt);
 }
 
-async function forward() {
+async function forwardOnce() {
   const n = ids.length;
   const input_ids = new Tensor("int64", BigInt64Array.from(ids.map((i) => BigInt(i))), [1, n]);
   const attention_mask = new Tensor("int64", new BigInt64Array(n).fill(1n), [1, n]);
@@ -226,6 +229,32 @@ async function forward() {
   const [, seq, vocab] = logits.dims;
   const data = logits.data;
   lastLogits = Float32Array.from(data.slice((seq - 1) * vocab, seq * vocab));
+}
+
+async function forward() {
+  try {
+    await forwardOnce();
+  } catch (err) {
+    // WebGPU can die mid-session (e.g. Android Chrome dropping the GPU
+    // instance). Once a model is fully loaded, transparently swap the same
+    // model onto WASM — generation state is preserved — and retry once.
+    if (device !== "webgpu" || !currentKey) throw err;
+    const spec = MODELS[currentKey];
+    self.postMessage({
+      type: "progress",
+      info: { file: "", status: "retry", message: `webgpu died mid-run (${err.message}) — switching to wasm…` },
+    });
+    try { model?.dispose?.(); } catch {}
+    model = null;
+    model = await AutoModelForCausalLM.from_pretrained(spec.repo, {
+      device: "wasm",
+      dtype: spec.wasm[0],
+      progress_callback: (info) => self.postMessage({ type: "progress", info }),
+    });
+    device = "wasm";
+    currentDtype = spec.wasm[0];
+    await forwardOnce();
+  }
 }
 
 function snapshot(temperature, chosen = null) {
