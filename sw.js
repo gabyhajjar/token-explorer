@@ -2,7 +2,7 @@
 // Model weights are NOT handled here — transformers.js caches them itself
 // in the browser's Cache Storage after the first download.
 
-const CACHE = "token-explorer-v4";
+const CACHE = "token-explorer-v5";
 const SHELL = [
   ".",
   "index.html",

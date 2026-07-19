@@ -14,18 +14,35 @@ if (!self.crossOriginIsolated) {
 const TOP_K = 20;
 const GREEDY_THRESHOLD = 0.05;
 
-// dtype per backend: WebGPU gets 4-bit+fp16 for the Qwen models; the WASM
-// fallback uses plain q4/q8 (fp16 is not supported there).
+// Dtype ladders per backend, tried in order until one loads AND produces
+// sane logits. fp16 compute (q4f16/fp16) silently returns garbage on some
+// mobile GPUs (Adreno), so Android prefers fp32-compute variants first.
+// The WASM ladder avoids q4 (its file for Qwen is ~900 MB and overflows the
+// 4 GB WASM heap) and fp16 (unsupported there).
+const isAndroid = /Android/i.test(self.navigator?.userAgent ?? "");
 const MODELS = {
-  "Qwen3-0.6B": { repo: "onnx-community/Qwen3-0.6B-ONNX", webgpu: "q4f16", wasm: "q8" },
-  "Qwen3-1.7B": { repo: "onnx-community/Qwen3-1.7B-ONNX", webgpu: "q4f16", wasm: "q8" },
-  "GPT-2": { repo: "onnx-community/gpt2-ONNX", webgpu: "fp16", wasm: "q8" },
+  "Qwen3-0.6B": {
+    repo: "onnx-community/Qwen3-0.6B-ONNX",
+    webgpu: isAndroid ? ["q4", "q4f16"] : ["q4f16", "q4"],
+    wasm: ["q8"],
+  },
+  "Qwen3-1.7B": {
+    repo: "onnx-community/Qwen3-1.7B-ONNX",
+    webgpu: isAndroid ? ["q4", "q4f16"] : ["q4f16", "q4"],
+    wasm: ["q8"],
+  },
+  "GPT-2": {
+    repo: "onnx-community/gpt2-ONNX",
+    webgpu: isAndroid ? ["fp32", "fp16"] : ["fp16", "fp32"],
+    wasm: ["q8"],
+  },
 };
 const DEFAULT_MODEL = "Qwen3-0.6B";
 
 let tokenizer = null;
 let model = null;
 let currentKey = null;
+let currentDtype = null;
 let device = null;
 
 let ids = [];
@@ -103,6 +120,24 @@ async function pickDevice() {
   return "wasm";
 }
 
+async function sanityCheckLogits() {
+  // Run one tiny forward pass and reject degenerate output (NaN/Inf or a
+  // flat distribution) — e.g. broken fp16 compute on some mobile GPUs
+  // silently returns all-zero logits.
+  ids = Array.from(tokenizer.encode("Hello"), Number);
+  try {
+    await forward();
+    const max = maxOf(lastLogits);
+    if (!Number.isFinite(max)) throw new Error("logits are not finite");
+    let min = Infinity;
+    for (let i = 0; i < lastLogits.length; i++) if (lastLogits[i] < min) min = lastLogits[i];
+    if (max - min < 1e-3) throw new Error("logits are flat (broken GPU compute?)");
+  } finally {
+    ids = [];
+    lastLogits = null;
+  }
+}
+
 async function loadModel(key, notify) {
   const spec = MODELS[key];
   if (!spec) throw new Error(`Unknown model ${key}`);
@@ -110,39 +145,46 @@ async function loadModel(key, notify) {
   tokenizer = null;
   model = null;
   currentKey = null;
+  currentDtype = null;
   ids = [];
   lastLogits = null;
 
   tokenizer = await AutoTokenizer.from_pretrained(spec.repo, { progress_callback: notify });
 
-  let dev = await pickDevice();
-  for (;;) {
+  const attempts = [];
+  if ((await pickDevice()) === "webgpu") {
+    for (const dt of spec.webgpu) attempts.push(["webgpu", dt]);
+  }
+  for (const dt of spec.wasm) attempts.push(["wasm", dt]);
+
+  let lastErr = null;
+  for (const [dev, dtype] of attempts) {
     try {
       model = await AutoModelForCausalLM.from_pretrained(spec.repo, {
         device: dev,
-        dtype: spec[dev],
+        dtype,
         progress_callback: notify,
       });
+      await sanityCheckLogits();
       device = dev;
-      break;
+      currentDtype = dtype;
+      currentKey = key;
+      collectEosIds();
+      return modelInfo();
     } catch (err) {
-      if (dev === "webgpu") {
-        // GPU backend refused at session creation — retry on CPU.
-        dev = "wasm";
-        continue;
-      }
-      throw err;
+      lastErr = err;
+      try { model?.dispose?.(); } catch {}
+      model = null;
+      notify({ file: "", status: "retry", message: `${dev}/${dtype} failed (${err.message}), trying next…` });
     }
   }
-  currentKey = key;
-  collectEosIds();
-  return modelInfo();
+  throw lastErr ?? new Error("No backend worked.");
 }
 
 function modelInfo() {
   return {
     model: currentKey,
-    device,
+    device: currentDtype ? `${device} ${currentDtype}` : device,
     has_chat_template: !!(tokenizer && tokenizer.chat_template),
   };
 }

@@ -56,7 +56,14 @@ async function call(type, body) {
 const fileProgress = new Map();
 
 function onProgress(info) {
-  if (!info || !info.file) return;
+  if (!info) return;
+  if (info.status === "retry") {
+    $("load-text").textContent = info.message;
+    $("load-bar").style.width = "0%";
+    fileProgress.clear();
+    return;
+  }
+  if (!info.file) return;
   if (info.status === "progress") fileProgress.set(info.file, info);
   const items = [...fileProgress.values()];
   const loaded = items.reduce((s, i) => s + (i.loaded || 0), 0);
