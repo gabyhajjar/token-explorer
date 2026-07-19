@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1218">
+<title>Token Explorer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Token Explorer
+    <label for="model-select" id="model-label">Model</label>
+    <select id="model-select" disabled></select>
+    <span id="device-badge"></span>
+  </h1>
+
+  <div id="load-panel">
+    <div id="load-text">Starting engine&hellip;</div>
+    <div id="load-bar-outer"><div id="load-bar"></div></div>
+  </div>
+
+  <section id="prompt-section">
+    <textarea id="prompt" rows="3" placeholder="Enter your prompt here...">The capital of France is</textarea>
+    <div id="start-col">
+      <button id="start-btn" disabled>&#9654; Start</button>
+      <label id="chat-toggle-label" title="On: wrap the prompt in the model's chat template (model replies to it). Off: feed the text raw (model continues it). Applies on Start.">
+        <input type="checkbox" id="chat-toggle" checked> Chat template
+      </label>
+    </div>
+  </section>
+
+  <section id="controls" hidden>
+    <div id="temp-control">
+      <label for="temp-slider">Temperature <span id="temp-value">1.00</span></label>
+      <input type="range" id="temp-slider" min="0" max="10" step="0.05" value="1">
+    </div>
+    <div id="buttons">
+      <button id="model-btn" title="One dice roll at the current temperature (greedy top-1 when T=0)">&#127922; Model pick</button>
+      <button id="auto-btn">&#9655;&#9655; Auto</button>
+      <button id="undo-btn">&#8630; Undo</button>
+    </div>
+    <div id="custom-control">
+      <input type="text" id="custom-input" placeholder="Type a custom continuation...">
+      <button id="custom-btn">Insert</button>
+    </div>
+  </section>
+
+  <section id="text-section" hidden>
+    <div id="text-display"><span id="prompt-text"></span><span id="generated-text"></span><span id="cursor">&#9612;</span></div>
+  </section>
+
+  <section id="candidates-section" hidden>
+    <div id="list-header">
+      <span>Pick the next token &mdash; tap or &uarr;/&darr; + Enter</span>
+      <span id="col-labels"></span>
+    </div>
+    <ol id="candidate-list"></ol>
+  </section>
+
+  <div id="status" hidden></div>
+</main>
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+</script>
+</body>
+</html>
