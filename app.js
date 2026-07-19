@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "v10";
+const APP_VERSION = "v11";
 
 const $ = (id) => document.getElementById(id);
 document.addEventListener("DOMContentLoaded", () => {

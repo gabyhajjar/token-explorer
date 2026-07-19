@@ -28,11 +28,6 @@ const MODELS = {
     webgpu: isAndroid ? ["q4"] : ["q4f16", "q4"],
     wasm: ["q8"],
   },
-  "Qwen3-1.7B": {
-    repo: "onnx-community/Qwen3-1.7B-ONNX",
-    webgpu: isAndroid ? ["q4"] : ["q4f16", "q4"],
-    wasm: ["q8"],
-  },
   "GPT-2": {
     repo: "onnx-community/gpt2-ONNX",
     webgpu: isAndroid ? ["fp32"] : ["fp16", "fp32"],
