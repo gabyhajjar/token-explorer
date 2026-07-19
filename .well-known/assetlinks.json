@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.gabyhajjar.tokenexplorer",
+    "sha256_cert_fingerprints": ["24:57:8E:67:6F:5A:62:1B:85:99:66:59:57:36:A9:1B:B4:E1:9C:FD:01:7E:DB:62:93:BD:21:95:D9:C8:B7:85"]
+  }
+}]
