@@ -5,6 +5,8 @@
 import { AutoTokenizer, AutoModelForCausalLM, Tensor, env } from "./vendor/transformers.min.js";
 
 env.allowLocalModels = false;
+// Serve the ONNX runtime .mjs/.wasm from our vendored copy, never a CDN.
+env.backends.onnx.wasm.wasmPaths = new URL("vendor/", self.location.href).href;
 // Multithreaded WASM needs SharedArrayBuffer, which needs COOP/COEP headers.
 // Without them, force single-thread instead of letting the runtime abort.
 if (!self.crossOriginIsolated) {
@@ -47,7 +49,8 @@ const MODELS = {
     wasm: ["q8"],
   },
 };
-const DEFAULT_MODEL = "Qwen3-0.6B";
+// Phones start on the smallest model; desktop can afford the better one.
+const DEFAULT_MODEL = isAndroid ? "SmolLM2-135M" : "Qwen3-0.6B";
 
 let tokenizer = null;
 let model = null;

@@ -2,7 +2,7 @@
 // Model weights are NOT handled here — transformers.js caches them itself
 // in the browser's Cache Storage after the first download.
 
-const CACHE = "token-explorer-v7";
+const CACHE = "token-explorer-v8";
 const SHELL = [
   ".",
   "index.html",
@@ -15,6 +15,8 @@ const SHELL = [
   "vendor/transformers.min.js",
   "vendor/ort-wasm-simd-threaded.jsep.mjs",
   "vendor/ort-wasm-simd-threaded.jsep.wasm",
+  "vendor/ort-wasm-simd-threaded.asyncify.mjs",
+  "vendor/ort-wasm-simd-threaded.asyncify.wasm",
 ];
 
 self.addEventListener("install", (e) => {
